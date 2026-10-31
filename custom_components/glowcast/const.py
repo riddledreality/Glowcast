@@ -11,19 +11,27 @@ CONF_CUSTOM_THEMES = "custom_themes"
 CONF_TEAM_COLORS = "team_colors"
 CONF_CUSTOM_GROUPS = "custom_groups"
 
-DEFAULT_SLOW_MIN_INTERVAL = 1.0
-DEFAULT_FAST_MIN_INTERVAL = 0.3
+# Minimum interval between commands per light (seconds).
+DEFAULT_SLOW_MIN_INTERVAL = 1.0  # Bluetooth / Govee
+DEFAULT_FAST_MIN_INTERVAL = 0.5  # everything else (floor)
 
-# Default warm white when turn_on has no color / first custom_color use.
+# Time budgets — never block the event loop unboundedly.
+RESTORE_LIGHT_TIMEOUT = 2.0
+SERVICE_CALL_TIMEOUT = 3.0
+TASK_CANCEL_TIMEOUT = 5.0
+SETTLE_TIMEOUT = 2.0
+
 DEFAULT_WARM_WHITE = (255, 180, 100)
 
 ATTR_ROOM = "room"
 ATTR_THEME = "theme"
 ATTR_RGB_COLOR = "rgb_color"
 ATTR_BRIGHTNESS = "brightness"
+ATTR_EMERGENCY = "emergency"
 
 SERVICE_START_THEME = "start_theme"
 SERVICE_STOP = "stop"
+SERVICE_STOP_ALL = "stop_all"
 SERVICE_SET_COLOR = "set_color"
 
 MODE_AUTO = "auto"
@@ -55,5 +63,6 @@ KEY_BRIGHTNESS = "brightness"
 KEY_MODE = "mode"
 KEY_EFFECT = "effect"
 KEY_COLOR = "color"
+KEY_ENABLED = "enabled"
 
 PLATFORMS = ("select", "switch", "number", "light")

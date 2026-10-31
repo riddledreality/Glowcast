@@ -19,6 +19,20 @@ stop:
       example: living_room
       selector:
         text:
+    emergency:
+      required: false
+      example: false
+      selector:
+        boolean:
+  target:
+
+stop_all:
+  fields:
+    emergency:
+      required: false
+      example: false
+      selector:
+        boolean:
 
 set_color:
   target:

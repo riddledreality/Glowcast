@@ -1,29 +1,46 @@
-"""Per-light rate limiting."""
+"""Per-light rate limiting (LightRateBook + heuristics)."""
 
 from __future__ import annotations
 
 import time
 
-from custom_components.glowcast.lights import LightInfo, is_slow_light
+import pytest
+
+from custom_components.glowcast.const import DEFAULT_FAST_MIN_INTERVAL, DEFAULT_SLOW_MIN_INTERVAL
+from custom_components.glowcast.lights import LightRateBook, is_slow_light
 
 
-def test_rate_limit_blocks_then_allows():
-    light = LightInfo("light.slow", None, "color", True, min_interval=1.0)
+def test_default_intervals():
+    assert DEFAULT_FAST_MIN_INTERVAL >= 0.5
+    assert DEFAULT_SLOW_MIN_INTERVAL >= 1.0
+
+
+def test_rate_book_blocks_then_allows():
+    book = LightRateBook()
     now = time.monotonic()
-    assert light.can_update(now)
-    light.mark_updated(now)
-    assert not light.can_update(now + 0.2)
-    assert light.can_update(now + 1.01)
+    assert book.can_send("light.a", 1.0, now)
+    book.begin("light.a")
+    assert not book.can_send("light.a", 1.0, now)
+    book.end("light.a", success=True, min_interval=1.0, now=now)
+    assert not book.can_send("light.a", 1.0, now + 0.2)
+    assert book.can_send("light.a", 1.0, now + 1.01)
 
 
-def test_fast_vs_slow_intervals():
-    slow = LightInfo("light.a", None, "color", True, 1.0)
-    fast = LightInfo("light.b", None, "color", False, 0.3)
-    t0 = time.monotonic()
-    slow.mark_updated(t0)
-    fast.mark_updated(t0)
-    assert not slow.can_update(t0 + 0.5)
-    assert fast.can_update(t0 + 0.5)
+def test_rate_book_backoff_on_error():
+    book = LightRateBook()
+    now = time.monotonic()
+    book.begin("light.a")
+    book.end("light.a", success=False, min_interval=0.5, now=now)
+    assert book.backoff_until["light.a"] > now
+    assert not book.can_send("light.a", 0.5, now + 0.1)
+
+
+def test_settle_delay_uses_last_sent():
+    book = LightRateBook()
+    now = time.monotonic()
+    book.last_sent["light.a"] = now
+    delay = book.settle_delay(["light.a"], {"light.a": 1.0}, now=now)
+    assert delay == pytest.approx(1.0, abs=0.01)
 
 
 def test_slow_heuristic_govee_name():
