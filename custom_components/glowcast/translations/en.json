@@ -1,0 +1,129 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GlowCast",
+        "description": "Sync existing Home Assistant lights into themed animated shows. Rooms are auto-created from areas that contain lights."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only a single GlowCast configuration is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GlowCast options",
+        "menu_options": {
+          "general": "General (exclusions, rate limits, team colors)",
+          "custom_theme": "Add custom theme",
+          "custom_group": "Add custom light group"
+        }
+      },
+      "general": {
+        "title": "GlowCast general options",
+        "description": "Exclude lights, mark slow (Bluetooth) lights, tune rate limits, and set Team Colors.",
+        "data": {
+          "excluded_lights": "Excluded lights",
+          "slow_lights": "Slow lights (Bluetooth / Govee-style)",
+          "slow_min_interval": "Min seconds between updates (slow lights)",
+          "fast_min_interval": "Min seconds between updates (other lights)",
+          "team_colors": "Team Colors (two [R,G,B] lists)"
+        }
+      },
+      "custom_theme": {
+        "title": "Add custom theme",
+        "data": {
+          "name": "Name",
+          "colors": "Colors (2-6 [R,G,B] lists)",
+          "effect": "Default effect"
+        },
+        "error": {
+          "colors_range": "Provide 2 to 6 RGB colors."
+        }
+      },
+      "custom_group": {
+        "title": "Add custom light group",
+        "data": {
+          "name": "Group name",
+          "lights": "Lights"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "theme": {
+        "name": "Theme"
+      },
+      "mode": {
+        "name": "Mode"
+      },
+      "effect": {
+        "name": "Effect"
+      }
+    },
+    "switch": {
+      "show": {
+        "name": "Show"
+      }
+    },
+    "number": {
+      "speed": {
+        "name": "Speed"
+      },
+      "brightness": {
+        "name": "Brightness"
+      }
+    },
+    "light": {
+      "color": {
+        "name": "Color"
+      }
+    }
+  },
+  "services": {
+    "start_theme": {
+      "name": "Start theme",
+      "description": "Start a themed show for a room.",
+      "fields": {
+        "room": {
+          "name": "Room",
+          "description": "Room id (area id, all_lights, or custom group id)."
+        },
+        "theme": {
+          "name": "Theme",
+          "description": "Optional theme key; sets Manual mode."
+        }
+      }
+    },
+    "stop": {
+      "name": "Stop show",
+      "description": "Stop the show for a room (or all rooms) and restore prior light states.",
+      "fields": {
+        "room": {
+          "name": "Room",
+          "description": "Optional room id. Omit to stop all."
+        }
+      }
+    },
+    "set_color": {
+      "name": "Set color",
+      "description": "Set a solid color for a room (or all_lights). Snapshots and starts from idle; hot-swaps into a static custom_color effect while a show is running. Switches mode to manual. Stop or turn off the show switch to restore prior light states.",
+      "fields": {
+        "room": {
+          "name": "Room",
+          "description": "Room id (area id, all_lights, or custom group id). Optional if a GlowCast entity or device is targeted."
+        },
+        "rgb_color": {
+          "name": "RGB color",
+          "description": "Required RGB color as [R, G, B] (0-255 each)."
+        },
+        "brightness": {
+          "name": "Brightness",
+          "description": "Optional brightness 0-100. Defaults to the room brightness number."
+        }
+      }
+    }
+  }
+}

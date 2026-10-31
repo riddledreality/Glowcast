@@ -1,0 +1,6 @@
+pytest>=8.0
+pytest-asyncio>=0.23
+# Prefer installing homeassistant + pytest-homeassistant-custom-component in the
+# project venv when available. Tests also run pure-logic suites without HA.
+homeassistant>=2024.8.0
+pytest-homeassistant-custom-component>=0.13.0

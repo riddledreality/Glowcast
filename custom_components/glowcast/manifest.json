@@ -1,0 +1,13 @@
+{
+  "domain": "glowcast",
+  "name": "GlowCast",
+  "codeowners": [
+    "@riddledreality"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/riddledreality/glowcast",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/riddledreality/glowcast/issues",
+  "requirements": [],
+  "version": "0.1.3"
+}
