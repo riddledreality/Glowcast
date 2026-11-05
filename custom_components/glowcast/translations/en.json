@@ -66,6 +66,13 @@
     "switch": {
       "show": {
         "name": "Show"
+      },
+      "enabled": {
+        "name": "Enabled",
+        "state": {
+          "off": "Off",
+          "on": "On"
+        }
       }
     },
     "number": {
@@ -99,11 +106,15 @@
     },
     "stop": {
       "name": "Stop show",
-      "description": "Stop the show for a room (or all rooms) and restore prior light states.",
+      "description": "Stop the show for a room (or all rooms when no target) and restore prior light states. Set emergency to skip restore.",
       "fields": {
         "room": {
           "name": "Room",
-          "description": "Optional room id. Omit to stop all."
+          "description": "Optional room id. Omit (or use stop_all) to stop every running show."
+        },
+        "emergency": {
+          "name": "Emergency",
+          "description": "If true, cancel immediately and skip restore (discards the pre-show snapshot)."
         }
       }
     },
@@ -122,6 +133,16 @@
         "brightness": {
           "name": "Brightness",
           "description": "Optional brightness 0-100. Defaults to the room brightness number."
+        }
+      }
+    },
+    "stop_all": {
+      "name": "Stop all shows",
+      "description": "Stop every running GlowCast show and restore prior light states (unless emergency).",
+      "fields": {
+        "emergency": {
+          "name": "Emergency",
+          "description": "If true, cancel immediately and skip restore."
         }
       }
     }

@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import area_registry as ar
@@ -17,6 +17,7 @@ import voluptuous as vol
 
 from .const import (
     ATTR_BRIGHTNESS,
+    ATTR_EMERGENCY,
     ATTR_RGB_COLOR,
     ATTR_ROOM,
     ATTR_THEME,
@@ -32,6 +33,7 @@ from .const import (
     SERVICE_SET_COLOR,
     SERVICE_START_THEME,
     SERVICE_STOP,
+    SERVICE_STOP_ALL,
 )
 from .rooms import build_rooms
 from .show import ShowManager
@@ -95,6 +97,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_started)
         )
 
+    # Clean shutdown if HA is stopping (cancel tasks; do not resume shows).
+    async def _on_ha_stop(_event) -> None:
+        mgr: ShowManager | None = hass.data.get(DOMAIN, {}).get("manager")
+        if mgr:
+            await mgr.async_unload()
+
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _on_ha_stop)
+    )
+
     _register_services(hass)
     return True
 
@@ -126,9 +138,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data.pop(DOMAIN, None)
         # Services stay registered for domain lifetime; remove if no entries
         if not hass.config_entries.async_entries(DOMAIN):
-            hass.services.async_remove(DOMAIN, SERVICE_START_THEME)
-            hass.services.async_remove(DOMAIN, SERVICE_STOP)
-            hass.services.async_remove(DOMAIN, SERVICE_SET_COLOR)
+            for svc in (SERVICE_START_THEME, SERVICE_STOP, SERVICE_STOP_ALL, SERVICE_SET_COLOR):
+                if hass.services.has_service(DOMAIN, svc):
+                    hass.services.async_remove(DOMAIN, svc)
     return unload_ok
 
 
@@ -183,11 +195,23 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_stop(call: ServiceCall) -> None:
         manager: ShowManager = hass.data[DOMAIN]["manager"]
-        room = call.data.get(ATTR_ROOM)
+        emergency = bool(call.data.get(ATTR_EMERGENCY))
+        room = call.data.get(ATTR_ROOM) or resolve_room_from_call(hass, call)
+        if emergency:
+            await manager.emergency_stop(room)
+            return
         if room:
-            await manager.stop(room)
+            await manager.stop(room, restore=True)
         else:
-            await manager.stop_all()
+            await manager.stop_all(restore=True)
+
+    async def handle_stop_all(call: ServiceCall) -> None:
+        manager: ShowManager = hass.data[DOMAIN]["manager"]
+        emergency = bool(call.data.get(ATTR_EMERGENCY))
+        if emergency:
+            await manager.emergency_stop(None)
+        else:
+            await manager.stop_all(restore=True)
 
     async def handle_set_color(call: ServiceCall) -> None:
         manager: ShowManager = hass.data[DOMAIN]["manager"]
@@ -214,7 +238,20 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_STOP,
         handle_stop,
-        schema=vol.Schema({vol.Optional(ATTR_ROOM): cv.string}),
+        schema=vol.Schema(
+            {
+                vol.Optional(ATTR_ROOM): cv.string,
+                vol.Optional(ATTR_EMERGENCY): cv.boolean,
+                vol.Optional("entity_id"): cv.entity_ids,
+                vol.Optional("device_id"): vol.Any(cv.string, [cv.string]),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_STOP_ALL,
+        handle_stop_all,
+        schema=vol.Schema({vol.Optional(ATTR_EMERGENCY): cv.boolean}),
     )
     hass.services.async_register(
         DOMAIN,

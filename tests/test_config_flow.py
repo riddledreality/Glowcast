@@ -63,7 +63,7 @@ async def test_options_flow_general(hass: HomeAssistant):
             "excluded_lights": [],
             "slow_lights": [],
             "slow_min_interval": 1.0,
-            "fast_min_interval": 0.3,
+            "fast_min_interval": 0.5,
             "team_colors": [[255, 0, 0], [0, 0, 255]],
         },
     )

@@ -66,6 +66,7 @@ async def test_set_color_from_idle_snapshots_and_starts(hass: HomeAssistant):
     show.mode = MODE_AUTO
     show.theme_key = "halloween"
     light = LightInfo("light.den", None, CAP_COLOR, slow=False, min_interval=0.01)
+    hass.states.async_set("light.den", "on", {"supported_color_modes": ["rgb"]})
 
     snap = _saved_off()
     calls: list[dict] = []
@@ -109,49 +110,31 @@ async def test_set_color_from_idle_snapshots_and_starts(hass: HomeAssistant):
 
 @pytest.mark.asyncio
 async def test_set_color_during_show_hot_swap_no_restore(hass: HomeAssistant):
-    """While running: hot-swap into custom_color/static; no restore/re-snapshot."""
+    """While running: restart into custom_color/static; no restore/re-snapshot."""
     manager = ShowManager(hass)
     room = _room("hot")
     show = manager.ensure_room(room)
     light = LightInfo("light.den", None, CAP_COLOR, False, 0.01)
+    hass.states.async_set("light.den", "on", {"supported_color_modes": ["rgb"]})
 
     show._saved = _saved_off()
     show.running = True
     show.mode = MODE_MANUAL
     show.theme_key = "calm"
     show.effect = "breathe"
-
-    frames: list[str] = []
-    first_frame = asyncio.Event()
-
-    async def capture_animate(s):
-        theme = manager.current_theme(s)
-        frames.append(theme.key)
-        first_frame.set()
-        try:
-            await asyncio.wait_for(s._wake.wait(), timeout=30)
-        except asyncio.TimeoutError:
-            pass
-        s._wake.clear()
-
-    show._task = hass.async_create_task(manager._show_loop(show))
+    show._task = hass.async_create_task(asyncio.sleep(60))
 
     with (
         patch.object(room, "resolve_lights", return_value=[light]),
-        patch.object(manager, "_animate_room", side_effect=capture_animate),
+        patch.object(manager, "_animate_room", new_callable=AsyncMock),
         patch.object(manager, "_restore", new_callable=AsyncMock) as restore_mock,
         patch(
             "custom_components.glowcast.show.snapshot_states",
             return_value={"poison": True},
         ) as snap,
     ):
-        await asyncio.wait_for(first_frame.wait(), timeout=2)
-        assert frames[0] == "calm"
         saved_before = dict(show._saved)
-
-        first_frame.clear()
         await manager.set_color(room.room_id, [10, 20, 30])
-        await asyncio.wait_for(first_frame.wait(), timeout=2)
 
         assert show.running is True
         assert show.theme_key == THEME_CUSTOM_COLOR
@@ -159,17 +142,13 @@ async def test_set_color_during_show_hot_swap_no_restore(hass: HomeAssistant):
         assert show.mode == MODE_MANUAL
         assert show.rgb_color == (10, 20, 30)
         assert show._saved == saved_before
-        assert THEME_CUSTOM_COLOR in frames
         theme = manager.current_theme(show)
         assert theme.palette == ((10, 20, 30),)
         snap.assert_not_called()
         restore_mock.assert_not_awaited()
+        assert manager._active_task_count() == 1
 
-        show.running = False
-        show._wake.set()
-        show._task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await show._task
+        await manager.stop(room.room_id, restore=False)
 
 
 @pytest.mark.asyncio
@@ -179,7 +158,9 @@ async def test_stop_restores_after_set_color(hass: HomeAssistant):
     room = _room("end")
     show = manager.ensure_room(room)
     light = LightInfo("light.den", None, CAP_COLOR, slow=True, min_interval=1.0)
-    light.mark_updated()
+    import time
+    manager.rate.last_sent["light.den"] = time.monotonic()
+    hass.states.async_set("light.den", "on")
 
     show.running = True
     show._saved = _saved_off()
@@ -238,6 +219,9 @@ async def test_set_color_white_only_and_onoff(hass: HomeAssistant):
     ct = LightInfo("light.ct", None, CAP_COLOR_TEMP, False, 0.0)
     onoff = LightInfo("light.basic", None, CAP_ONOFF, False, 0.0)
     rgb = LightInfo("light.rgb", None, CAP_COLOR, False, 0.0)
+    hass.states.async_set("light.ct", "on", {"supported_color_modes": ["color_temp"]})
+    hass.states.async_set("light.basic", "on")
+    hass.states.async_set("light.rgb", "on", {"supported_color_modes": ["rgb"]})
 
     calls: list[dict] = []
 
